@@ -3,10 +3,11 @@ const CHANNEL_ID = '972395'; // Sayısal ID daha stabildir // kaanflix : 7522082
 const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? `http://localhost:3000/api/pinned/${CHANNEL_ID}`
     : `/api/pinned/${CHANNEL_ID}`;
-const REFRESH_INTERVAL = 2000;
+const REFRESH_INTERVAL = 15000;
 
 const container = document.getElementById('widget-container');
 let lastMessageId = null;
+let resolvedImages = {}; // Çözülmüş resim linklerini burada saklayacağız
 
 console.log(`🚀 Widget Başlatıldı. Kanal ID: ${CHANNEL_ID}`);
 
@@ -102,9 +103,14 @@ function renderPinnedMessage(msg) {
         }
     };
 
-    async function fetchPrntScImage(url) {
+    async function fetchPrntScImage(url, msgId) {
+        // Eğer bu mesajın resmi zaten çözüldüyse hafızadan getir
+        if (resolvedImages[msgId]) {
+            render(resolvedImages[msgId]);
+            return;
+        }
+
         try {
-            // Sunucu üzerinden değil, direkt proxy üzerinden çekelim (daha hızlı)
             const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
             const res = await fetch(proxyUrl);
             const data = await res.json();
@@ -116,12 +122,14 @@ function renderPinnedMessage(msg) {
             if (match && match[1]) {
                 let directUrl = match[1];
                 if (directUrl.startsWith('//')) directUrl = 'https:' + directUrl;
+                resolvedImages[msgId] = directUrl; // Hafızaya al
                 render(directUrl);
             } else {
                 render(null);
             }
         } catch (e) {
-            render(null);
+            console.error("Prnt.sc error:", e);
+            // Hata olsa bile hemen resmi silme, bir sonraki turda tekrar denesin
         }
     }
 
@@ -147,7 +155,7 @@ function renderPinnedMessage(msg) {
         render(imageUrl);
     } else if (prntMatch) {
         content = content.replace(prntMatch[0], '').trim();
-        fetchPrntScImage(prntMatch[0]);
+        fetchPrntScImage(prntMatch[0], msg.id);
     } else if (imgMatch) {
         imageUrl = imgMatch[0];
         content = content.replace(imgMatch[0], '').trim();
@@ -164,6 +172,7 @@ function hideWidget() {
         setTimeout(() => {
             container.innerHTML = '';
             lastMessageId = null;
+            resolvedImages = {}; // Mesaj silindiğinde hafızayı temizle
         }, 400);
     }
 }
