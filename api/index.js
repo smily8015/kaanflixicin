@@ -1,70 +1,67 @@
 const axios = require('axios');
 
 module.exports = async (req, res) => {
-    // CORS ayarları
+    // CORS Ayarları
     res.setHeader('Access-Control-Allow-Credentials', true);
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-    res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
     if (req.method === 'OPTIONS') {
-        res.status(200).end();
-        return;
+        return res.status(200).end();
     }
 
-    const { pathname } = new URL(req.url, `http://${req.headers.host}`);
-    const channelId = pathname.split('/').pop();
+    // URL'den ID çekme (örn: /api/pinned/972395)
+    const parts = req.url.split('/');
+    const channelId = parts[parts.length - 1].split('?')[0];
 
-    if (!channelId || channelId === 'index.js') {
+    if (!channelId || channelId === 'pinned') {
         return res.status(400).json({ success: false, error: 'Channel ID is required' });
     }
 
     try {
         const targetUrl = `https://kick.com/api/v2/channels/${channelId}/messages`;
         
-        // Denenecek Proxy Listesi
+        // Proxy Listesi
         const proxies = [
             `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`,
             `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`
         ];
 
-        let lastError = null;
         let pinnedMessage = null;
 
         for (const proxyUrl of proxies) {
             try {
-                console.log(`📡 Trying proxy: ${proxyUrl}`);
-                const response = await axios.get(proxyUrl, {
-                    headers: {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-                    },
-                    timeout: 4000
-                });
+                const response = await axios.get(proxyUrl, { timeout: 5000 });
+                let data = response.data;
 
-                // AllOrigins formatı farklıdır (data.contents), corsproxy direkt veri döndürür
-                const data = response.data.contents ? JSON.parse(response.data.contents) : response.data;
+                // AllOrigins formatı kontrolü
+                if (data && data.contents) {
+                    try {
+                        data = JSON.parse(data.contents);
+                    } catch (e) {
+                        console.error("JSON parse error for proxy contents");
+                        continue;
+                    }
+                }
+
                 pinnedMessage = data?.data?.pinned_message?.message;
-                
-                if (pinnedMessage !== undefined) break; // Başarılıysa döngüden çık
+                if (pinnedMessage !== undefined) break; 
             } catch (err) {
-                console.warn(`⚠️ Proxy failed: ${err.message}`);
-                lastError = err;
+                console.warn(`Proxy failed: ${proxyUrl}`);
             }
         }
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
-            pinned_message: pinnedMessage || null,
-            error: pinnedMessage === null ? 'No pinned message found' : null
+            pinned_message: pinnedMessage || null
         });
 
     } catch (error) {
-        console.error('❌ Vercel API Critical Error:', error.message);
-        res.status(200).json({
+        return res.status(200).json({
             success: false,
-            error: 'Kick API error',
-            message: error.message,
-            pinned_message: null
+            pinned_message: null,
+            error: error.message
         });
     }
 };
