@@ -8,6 +8,8 @@ const REFRESH_INTERVAL = 15000;
 const container = document.getElementById('widget-container');
 let lastMessageId = null;
 let resolvedImages = {}; // Çözülmüş resim linklerini burada saklayacağız
+let hideAttempts = 0; // Silinme onay sayacı
+const MAX_HIDE_ATTEMPTS = 3; // Üst üste 3 kez boş gelirse sil
 
 console.log(`🚀 Widget Başlatıldı. Kanal ID: ${CHANNEL_ID}`);
 
@@ -17,29 +19,32 @@ async function fetchPinnedMessage() {
         if (!response.ok) throw new Error("Yerel sunucuya bağlanılamadı");
 
         const data = await response.json();
-
-        // Sadece başarılı bir sorgu geldiyse ve içinde mesaj yoksa sil
-        // Eğer success: false ise (hata varsa) eski mesajı ekranda tutmaya devam et
+        
+        // Sadece başarılı bir sorgu geldiyse ve içinde mesaj yoksa silme işlemini başlat
         if (data.success === true && !data.pinned_message) {
-            if (lastMessageId !== null) {
-                console.log("ℹ️ Sabitlenmiş mesaj kaldırıldı");
+            hideAttempts++;
+            console.log(`⚠️ Mesaj bulunamadı, silme denemesi: ${hideAttempts}/${MAX_HIDE_ATTEMPTS}`);
+            
+            if (hideAttempts >= MAX_HIDE_ATTEMPTS && lastMessageId !== null) {
+                console.log("ℹ️ Sabitlenmiş mesaj onaylanarak kaldırıldı");
                 hideWidget();
             }
             return;
         }
 
-        // Hata varsa veya mesaj yoksa devam etme
-        if (!data.pinned_message) return;
+        // Eğer mesaj varsa, sayaçları sıfırla ve devam et
+        if (data.pinned_message) {
+            hideAttempts = 0;
+            const pinnedMsg = data.pinned_message;
 
-        const pinnedMsg = data.pinned_message;
-
-        if (pinnedMsg.id === lastMessageId) {
-            return; // Değişiklik yok
-        }
+            if (pinnedMsg.id === lastMessageId) {
+                return; // Değişiklik yok
+            }
 
         console.log("📌 Yeni mesaj yüklendi:", pinnedMsg.content);
         lastMessageId = pinnedMsg.id;
         renderPinnedMessage(pinnedMsg);
+        }
 
     } catch (error) {
         console.error("❌ Bağlantı Hatası:", error.message);
