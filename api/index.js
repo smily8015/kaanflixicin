@@ -20,7 +20,7 @@ module.exports = async (req, res) => {
     }
 
     try {
-        const targetUrl = `https://kick.com/api/v2/channels/${channelId}/messages`;
+        const targetUrl = `https://kick.com/api/v2/channels/${channelId}/messages?t=${Date.now()}`;
         
         // Proxy Listesi
         const proxies = [
