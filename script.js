@@ -16,15 +16,21 @@ async function fetchPinnedMessage() {
         if (!response.ok) throw new Error("Yerel sunucuya bağlanılamadı");
 
         const data = await response.json();
-        const pinnedMsg = data.pinned_message;
 
-        if (!pinnedMsg) {
+        // Sadece başarılı bir sorgu geldiyse ve içinde mesaj yoksa sil
+        // Eğer success: false ise (hata varsa) eski mesajı ekranda tutmaya devam et
+        if (data.success === true && !data.pinned_message) {
             if (lastMessageId !== null) {
                 console.log("ℹ️ Sabitlenmiş mesaj kaldırıldı");
                 hideWidget();
             }
             return;
         }
+
+        // Hata varsa veya mesaj yoksa devam etme
+        if (!data.pinned_message) return;
+
+        const pinnedMsg = data.pinned_message;
 
         if (pinnedMsg.id === lastMessageId) {
             return; // Değişiklik yok
