@@ -1,0 +1,161 @@
+:root {
+    --bg-glass: #0b0b0c; /* Kick orijinal arka plan */
+    --border-glass: rgba(255, 255, 255, 0.08);
+    --accent-color: #e9113c; /* Gönderdiğin vurgu rengi */
+    --text-primary: #ffffff;
+    --text-secondary: #efeff1;
+    --font-main: 'Inter', sans-serif;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-font-smoothing: antialiased;
+}
+
+body {
+    font-family: var(--font-main);
+    background: transparent;
+    width: 350px;
+    height: auto;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end; /* Sağa yasla */
+    justify-content: flex-start;
+    padding: 10px;
+}
+
+#widget-container {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end; /* İçeriği sağa yasla */
+    gap: 8px;
+    width: 100%;
+}
+
+.pinned-message {
+    background: transparent;
+    border: none;
+    padding: 4px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end; /* İçeriği sağa yasla */
+    gap: 4px;
+    animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    opacity: 0;
+    text-align: right; /* Metin sağa dayalı */
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(30px); /* Sağdan gelsin */
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.pinned-header {
+    display: flex;
+    flex-direction: row-reverse; /* İkonu metnin sağına al */
+    align-items: center;
+    gap: 6px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #53fc18; /* Açık parlak yeşil */
+    letter-spacing: 0.05em;
+}
+
+.pinned-header svg {
+    width: 12px;
+    height: 12px;
+}
+
+.username {
+    font-weight: 700;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+    background: rgba(0, 0, 0, 0.4);
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.badge {
+    width: 15px;
+    height: 15px;
+    background: var(--accent-color);
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    color: white;
+    font-weight: 900;
+    flex-shrink: 0;
+}
+
+.message-content {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    line-height: 1.4;
+    word-wrap: break-word;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8); /* Yazı gölgesi */
+    background: rgba(0, 0, 0, 0.4); /* Hafif siyah arka plan */
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-top: 2px;
+}
+
+.pinned-image-container {
+    margin-top: 8px;
+    width: 100%;
+    border-radius: 4px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.pinned-image-container img {
+    width: 100%;
+    height: auto;
+    display: block;
+    object-fit: contain;
+}
+
+.inline-mode {
+    gap: 2px !important;
+}
+
+.inline-content {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.inline-content .username {
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+
+.inline-content .message-content {
+    font-size: 0.9rem;
+}
+
+.fade-out {
+    animation: fadeOut 0.4s ease forwards;
+}
+
+@keyframes fadeOut {
+    to {
+        opacity: 0;
+        transform: scale(0.98);
+    }
+}

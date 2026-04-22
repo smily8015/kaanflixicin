@@ -1,0 +1,168 @@
+// CONFIGURATION
+const CHANNEL_ID = '972395'; // Sayısal ID daha stabildir
+const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+    ? `http://localhost:3000/api/pinned/${CHANNEL_ID}` 
+    : `/api/pinned/${CHANNEL_ID}`;
+const REFRESH_INTERVAL = 5000;
+
+const container = document.getElementById('widget-container');
+let lastMessageId = null;
+
+console.log(`🚀 Widget Başlatıldı. Kanal ID: ${CHANNEL_ID}`);
+
+async function fetchPinnedMessage() {
+    try {
+        const response = await fetch(`${API_BASE}?t=${Date.now()}`);
+        if (!response.ok) throw new Error("Yerel sunucuya bağlanılamadı");
+
+        const data = await response.json();
+        const pinnedMsg = data.pinned_message;
+
+        if (!pinnedMsg) {
+            if (lastMessageId !== null) {
+                console.log("ℹ️ Sabitlenmiş mesaj kaldırıldı");
+                hideWidget();
+            }
+            return;
+        }
+
+        if (pinnedMsg.id === lastMessageId) {
+            return; // Değişiklik yok
+        }
+
+        console.log("📌 Yeni mesaj yüklendi:", pinnedMsg.content);
+        lastMessageId = pinnedMsg.id;
+        renderPinnedMessage(pinnedMsg);
+
+    } catch (error) {
+        console.error("❌ Bağlantı Hatası:", error.message);
+    }
+}
+
+function renderPinnedMessage(msg) {
+    const username = msg.sender?.username || 'Anonim';
+    let content = msg.content || '';
+    const userColor = msg.sender?.identity?.color || '#53fc18';
+    const isBroadcaster = msg.sender?.identity?.badges?.some(b => b.type === 'broadcaster');
+
+    const render = (finalImageUrl) => {
+        let html = '';
+
+        if (finalImageUrl) {
+            // GÖRSEL VARSA: Üst üste düzen
+            html = `
+                <div class="pinned-message">
+                    <div class="pinned-header">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M16,12V4H17V2H7V4H8V12L6,14V16H11.2V22H12.8V16H18V14L16,12Z" />
+                        </svg>
+                        <span>SABİTLENMİŞ MESAJ</span>
+                    </div>
+                    <div class="username" style="color: ${userColor}">
+                        ${username}
+                    </div>
+                    ${content ? `<div class="message-content">${content}</div>` : ''}
+                    <div class="pinned-image-container">
+                        <img src="${finalImageUrl}" alt="Sabitlenmiş Görsel">
+                    </div>
+                </div>
+            `;
+        } else {
+            // SADECE METİN VARSA: Yan yana (Nickname: Mesaj) düzeni
+            html = `
+                <div class="pinned-message inline-mode">
+                    <div class="pinned-header">
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M16,12V4H17V2H7V4H8V12L6,14V16H11.2V22H12.8V16H18V14L16,12Z" />
+                        </svg>
+                        <span>SABİTLENMİŞ MESAJ</span>
+                    </div>
+                    <div class="inline-content">
+                        <span class="username" style="color: ${userColor}">${username}:</span>
+                        <span class="message-content">${content}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        const oldMsg = container.querySelector('.pinned-message');
+        if (oldMsg) {
+            oldMsg.classList.add('fade-out');
+            setTimeout(() => {
+                container.innerHTML = html;
+            }, 400);
+        } else {
+            container.innerHTML = html;
+        }
+    };
+
+    async function fetchPrntScImage(url) {
+        try {
+            // Sunucu üzerinden değil, direkt proxy üzerinden çekelim (daha hızlı)
+            const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+            const res = await fetch(proxyUrl);
+            const data = await res.json();
+            const html = data.contents;
+
+            const match = html.match(/<img[^>]+src="([^">]+img\.lightshot\.app\/[^">]+)"/i) ||
+                html.match(/id="screenshot-image"[^>]+src="([^">]+)"/i);
+
+            if (match && match[1]) {
+                let directUrl = match[1];
+                if (directUrl.startsWith('//')) directUrl = 'https:' + directUrl;
+                render(directUrl);
+            } else {
+                render(null);
+            }
+        } catch (e) {
+            render(null);
+        }
+    }
+
+    // IMAGE DETECTION LOGIC
+    const imgRegex = /(https?:\/\/[^\s]+?\.(?:jpg|jpeg|png|gif|webp))/i;
+    const hizliResimRegex = /https?:\/\/hizliresim\.com\/([a-zA-Z0-9]+)/i;
+    const giphyRegex = /https?:\/\/giphy\.com\/gifs\/(?:.*-)?([a-zA-Z0-9]+)/i;
+    const prntScRegex = /https?:\/\/prnt\.sc\/([a-zA-Z0-9_-]+)/i;
+
+    let imageUrl = null;
+    const imgMatch = content.match(imgRegex);
+    const hizliMatch = content.match(hizliResimRegex);
+    const giphyMatch = content.match(giphyRegex);
+    const prntMatch = content.match(prntScRegex);
+
+    if (hizliMatch) {
+        imageUrl = `https://i.hizliresim.com/${hizliMatch[1]}.jpg`;
+        content = content.replace(hizliMatch[0], '').trim();
+        render(imageUrl);
+    } else if (giphyMatch) {
+        imageUrl = `https://media.giphy.com/media/${giphyMatch[1]}/giphy.gif`;
+        content = content.replace(giphyMatch[0], '').trim();
+        render(imageUrl);
+    } else if (prntMatch) {
+        content = content.replace(prntMatch[0], '').trim();
+        fetchPrntScImage(prntMatch[0]);
+    } else if (imgMatch) {
+        imageUrl = imgMatch[0];
+        content = content.replace(imgMatch[0], '').trim();
+        render(imageUrl);
+    } else {
+        render(null);
+    }
+}
+
+function hideWidget() {
+    const oldMsg = container.querySelector('.pinned-message');
+    if (oldMsg) {
+        oldMsg.classList.add('fade-out');
+        setTimeout(() => {
+            container.innerHTML = '';
+            lastMessageId = null;
+        }, 400);
+    }
+}
+
+fetchPinnedMessage();
+setInterval(fetchPinnedMessage, REFRESH_INTERVAL);
+
+console.log("⏱️ Rafraîchissement toutes les 5 secondes...");
