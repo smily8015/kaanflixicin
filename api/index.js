@@ -20,35 +20,49 @@ module.exports = async (req, res) => {
     }
 
     try {
-        const targetUrl = `https://kick.com/api/v2/channels/${channelId}/messages?t=${Date.now()}`;
-        
-        // Proxy Listesi
-        const proxies = [
-            `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`,
-            `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`
+        // Denenecek URL listesi (En hızlıdan en yavaşa)
+        const targetUrls = [
+            `https://kick.com/api/internal/v1/channels/${channelId}/chatroom/pinned-message`,
+            `https://kick.com/api/v2/channels/${channelId}/messages`
         ];
-
+        
         let pinnedMessage = null;
+        let successFound = false;
 
-        for (const proxyUrl of proxies) {
-            try {
-                const response = await axios.get(proxyUrl, { timeout: 5000 });
-                let data = response.data;
+        for (const targetUrl of targetUrls) {
+            if (successFound) break;
 
-                // AllOrigins formatı kontrolü
-                if (data && data.contents) {
-                    try {
-                        data = JSON.parse(data.contents);
-                    } catch (e) {
-                        console.error("JSON parse error for proxy contents");
-                        continue;
+            const timeStamp = Date.now();
+            const finalTarget = `${targetUrl}${targetUrl.includes('?') ? '&' : '?'}t=${timeStamp}`;
+            
+            const proxies = [
+                `https://api.allorigins.win/get?url=${encodeURIComponent(finalTarget)}`,
+                `https://corsproxy.io/?${encodeURIComponent(finalTarget)}`
+            ];
+
+            for (const proxyUrl of proxies) {
+                try {
+                    const response = await axios.get(proxyUrl, { timeout: 5000 });
+                    let data = response.data;
+
+                    // Proxy formatını (AllOrigins) temizle
+                    if (data && data.contents) {
+                        try {
+                            data = JSON.parse(data.contents);
+                        } catch (e) { continue; }
                     }
-                }
 
-                pinnedMessage = data?.data?.pinned_message?.message;
-                if (pinnedMessage !== undefined) break; 
-            } catch (err) {
-                console.warn(`Proxy failed: ${proxyUrl}`);
+                    // Veri yapısını kontrol et (internal API vs v2 API)
+                    // Internal API direkt data.message içinde döndürebilir
+                    pinnedMessage = data?.data?.message || data?.data?.pinned_message?.message || data?.message;
+                    
+                    if (pinnedMessage) {
+                        successFound = true;
+                        break;
+                    }
+                } catch (err) {
+                    console.warn(`Proxy failed: ${proxyUrl}`);
+                }
             }
         }
 
