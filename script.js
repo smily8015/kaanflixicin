@@ -1,7 +1,7 @@
 // CONFIGURATION
-const CHANNEL_ID = '972395'; // Sayısal ID daha stabildir
-const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-    ? `http://localhost:3000/api/pinned/${CHANNEL_ID}` 
+const CHANNEL_ID = '7522082'; // Sayısal ID daha stabildir
+const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? `http://localhost:3000/api/pinned/${CHANNEL_ID}`
     : `/api/pinned/${CHANNEL_ID}`;
 const REFRESH_INTERVAL = 2000;
 
