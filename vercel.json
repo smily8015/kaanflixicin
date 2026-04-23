@@ -2,8 +2,20 @@
   "version": 2,
   "rewrites": [
     {
+      "source": "/api/resolve-image",
+      "destination": "/api/resolve-image.js"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api/index.js"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/api/resolve-image",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=3600" }
+      ]
     }
   ]
 }

@@ -19,12 +19,12 @@ async function fetchPinnedMessage() {
         if (!response.ok) throw new Error("Yerel sunucuya bağlanılamadı");
 
         const data = await response.json();
-        
+
         // Sadece başarılı bir sorgu geldiyse ve içinde mesaj yoksa silme işlemini başlat
         if (data.success === true && !data.pinned_message) {
             hideAttempts++;
             console.log(`⚠️ Mesaj bulunamadı, silme denemesi: ${hideAttempts}/${MAX_HIDE_ATTEMPTS}`);
-            
+
             if (hideAttempts >= MAX_HIDE_ATTEMPTS && lastMessageId !== null) {
                 console.log("ℹ️ Sabitlenmiş mesaj onaylanarak kaldırıldı");
                 hideWidget();
@@ -41,9 +41,9 @@ async function fetchPinnedMessage() {
                 return; // Değişiklik yok
             }
 
-        console.log("📌 Yeni mesaj yüklendi:", pinnedMsg.content);
-        lastMessageId = pinnedMsg.id;
-        renderPinnedMessage(pinnedMsg);
+            console.log("📌 Yeni mesaj yüklendi:", pinnedMsg.content);
+            lastMessageId = pinnedMsg.id;
+            renderPinnedMessage(pinnedMsg);
         }
 
     } catch (error) {
@@ -108,7 +108,7 @@ function renderPinnedMessage(msg) {
         }
     };
 
-    async function fetchPrntScImage(url, msgId) {
+    async function fetchExternalImage(url, msgId, type) {
         // Eğer bu mesajın resmi zaten çözüldüyse hafızadan getir
         if (resolvedImages[msgId]) {
             render(resolvedImages[msgId]);
@@ -116,25 +116,27 @@ function renderPinnedMessage(msg) {
         }
 
         try {
-            const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-            const res = await fetch(proxyUrl);
+            // Vercel Edge Function kullan - fluid, hızlı, CORS'süz
+            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            const edgeBase = isLocal
+                ? 'http://localhost:3000/api/resolve-image'
+                : '/api/resolve-image';
+
+            const edgeUrl = `${edgeBase}?url=${encodeURIComponent(url)}`;
+            const res = await fetch(edgeUrl);
             const data = await res.json();
-            const html = data.contents;
 
-            const match = html.match(/<img[^>]+src="([^">]+img\.lightshot\.app\/[^">]+)"/i) ||
-                html.match(/id="screenshot-image"[^>]+src="([^">]+)"/i);
-
-            if (match && match[1]) {
-                let directUrl = match[1];
-                if (directUrl.startsWith('//')) directUrl = 'https:' + directUrl;
-                resolvedImages[msgId] = directUrl; // Hafızaya al
-                render(directUrl);
+            if (data.success && data.directUrl) {
+                console.log(`✅ ${type} - Edge Function'dan URL:`, data.directUrl);
+                resolvedImages[msgId] = data.directUrl;
+                render(data.directUrl);
             } else {
+                console.log(`❌ ${type} - URL çözülemedi:`, data.error || 'Unknown error');
                 render(null);
             }
         } catch (e) {
-            console.error("Prnt.sc error:", e);
-            // Hata olsa bile hemen resmi silme, bir sonraki turda tekrar denesin
+            console.error("Scraping error:", e);
+            render(null);
         }
     }
 
@@ -151,16 +153,15 @@ function renderPinnedMessage(msg) {
     const prntMatch = content.match(prntScRegex);
 
     if (hizliMatch) {
-        imageUrl = `https://i.hizliresim.com/${hizliMatch[1]}.jpg`;
         content = content.replace(hizliMatch[0], '').trim();
-        render(imageUrl);
+        fetchExternalImage(hizliMatch[0], msg.id, 'hizli');
     } else if (giphyMatch) {
         imageUrl = `https://media.giphy.com/media/${giphyMatch[1]}/giphy.gif`;
         content = content.replace(giphyMatch[0], '').trim();
         render(imageUrl);
     } else if (prntMatch) {
         content = content.replace(prntMatch[0], '').trim();
-        fetchPrntScImage(prntMatch[0], msg.id);
+        fetchExternalImage(prntMatch[0], msg.id, 'prnt');
     } else if (imgMatch) {
         imageUrl = imgMatch[0];
         content = content.replace(imgMatch[0], '').trim();
