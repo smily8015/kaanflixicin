@@ -1,12 +1,21 @@
 {
+  "version": 2,
   "rewrites": [
     {
-      "source": "/api/pinned/:id",
-      "destination": "/api/pinned"
+      "source": "/api/pinned/(.*)",
+      "destination": "/api/pinned.js"
     },
     {
       "source": "/api/resolve-image",
-      "destination": "/api/resolve-image"
+      "destination": "/api/resolve-image.js"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/api/resolve-image",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=3600" }
+      ]
     }
   ]
 }

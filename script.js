@@ -1,81 +1,109 @@
 // CONFIGURATION
-const CHANNEL_ID = '972395'; // Sayısal ID daha stabildir
-const REFRESH_INTERVAL = 15000;
+const CHANNEL_ID = '972395'; // Sayısal ID daha stabildir // kaanflix : 7522082 // parisdekibebeg : 972395
 
-// Dinamik base URL - Vercel'de relative path kullanır
+// Hugging Face linkini buraya yapıştır (Sonunda / olmasın)
+const HF_BACKEND_URL = 'https://sketur60-kaanpin.hf.space'; 
+
 const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-const BASE_PATH = isLocal ? `http://localhost:3000` : ''; 
-const API_BASE = `${BASE_PATH}/api/pinned/${CHANNEL_ID}`;
+const API_BASE = isLocal ? window.location.origin : HF_BACKEND_URL;
 
+const API_PINNED = `${API_BASE}/api/pinned/${CHANNEL_ID}`;
+const API_RESOLVE = `${API_BASE}/api/resolve-image`;
+const REFRESH_INTERVAL = 5000;
 const container = document.getElementById('widget-container');
 let lastMessageId = null;
-let resolvedImages = {};
-let hideAttempts = 0; 
-const MAX_HIDE_ATTEMPTS = 3; 
+let resolvedImages = {}; // Çözülmüş resim linklerini burada saklayacağız
+let hideAttempts = 0; // Silinme onay sayacı
+const MAX_HIDE_ATTEMPTS = 2; // Üst üste 2 kez boş gelirse sil
 
 console.log(`🚀 Widget Başlatıldı. Kanal ID: ${CHANNEL_ID}`);
+console.log(`🔗 API_BASE: ${API_BASE}`);
 
 async function fetchPinnedMessage() {
     try {
-        const response = await fetch(`${API_BASE}?t=${Date.now()}`);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const fetchUrl = `${API_PINNED}?t=${Date.now()}`;
+        console.log(`📡 Fetching: ${fetchUrl}`);
+
+        const response = await fetch(fetchUrl);
+        console.log(`📥 Response status: ${response.status}`);
+
+        if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 
         const data = await response.json();
         
-        // Eğer başarılı bir sorgu geldiyse ve içinde mesaj yoksa sayaç başlat
-        if (data.success === true && !data.pinned_message) {
-            hideAttempts++;
-            if (hideAttempts >= MAX_HIDE_ATTEMPTS && lastMessageId !== null) {
-                hideWidget();
+        if (data.success === true) {
+            if (data.pinned_message) {
+                // Mesaj varsa göster
+                hideAttempts = 0;
+                const pinnedMsg = data.pinned_message;
+
+                if (pinnedMsg.id === lastMessageId) {
+                    return; // Aynı mesaj, değişiklik yok
+                }
+
+                console.log("📌 Yeni mesaj yüklendi:", pinnedMsg.content);
+                lastMessageId = pinnedMsg.id;
+                renderPinnedMessage(pinnedMsg);
+            } else {
+                // Pin kaldırılmış veya mesaj bulunamadı
+                hideAttempts++;
+                console.log(`⚪ Pin bulunamadı (${hideAttempts}/${MAX_HIDE_ATTEMPTS})`);
+                
+                if (hideAttempts >= MAX_HIDE_ATTEMPTS) {
+                    hideWidget();
+                }
             }
-            return;
-        }
-
-        // Eğer mesaj gelirse işle
-        if (data.success === true && data.pinned_message) {
-            hideAttempts = 0; // Sayaç sıfırla
-            const pinnedMsg = data.pinned_message;
-
-            if (pinnedMsg.id === lastMessageId) {
-                return; // Aynı mesaj, değişiklik yok
-            }
-
-            console.log("📌 Yeni mesaj yüklendi:", pinnedMsg.content);
-            lastMessageId = pinnedMsg.id;
-            renderPinnedMessage(pinnedMsg);
         }
     } catch (error) {
         console.error("❌ Bağlantı Hatası:", error.message);
+        // Hata durumunda hemen silmiyoruz, bağlantı kopmuş olabilir
     }
 }
 
 function renderPinnedMessage(msg) {
-    const username = msg.sender?.username || 'Anonim';
+    const username = msg.sender?.username;
     let content = msg.content || '';
 
+    // Veri yoksa hiç render etme
+    if (!username && !content) {
+        console.log("⚠️ Mesaj verisi eksik - render atlanıyor");
+        hideWidget();
+        return;
+    }
+
     const userColor = msg.sender?.identity?.color || '#53fc18';
+    const isBroadcaster = msg.sender?.identity?.badges?.some(b => b.type === 'broadcaster');
 
     const render = (finalImageUrl) => {
         let html = '';
+
         if (finalImageUrl) {
+            // GÖRSEL VARSA: Üst üste düzen
             html = `
                 <div class="pinned-message">
                     <div class="pinned-header">
-                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16,12V4H17V2H7V4H8V12L6,14V16H11.2V22H12.8V16H18V14L16,12Z" /></svg>
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M16,12V4H17V2H7V4H8V12L6,14V16H11.2V22H12.8V16H18V14L16,12Z" />
+                        </svg>
                         <span>SABİTLENMİŞ MESAJ</span>
                     </div>
-                    <div class="username" style="color: ${userColor}">${username}</div>
+                    <div class="username" style="color: ${userColor}">
+                        ${username}
+                    </div>
                     ${content ? `<div class="message-content">${content}</div>` : ''}
                     <div class="pinned-image-container">
-                        <img src="${finalImageUrl}" alt="Görsel">
+                        <img src="${finalImageUrl}" alt="Sabitlenmiş Görsel">
                     </div>
                 </div>
             `;
         } else {
+            // SADECE METİN VARSA: Yan yana (Nickname: Mesaj) düzeni
             html = `
                 <div class="pinned-message inline-mode">
                     <div class="pinned-header">
-                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16,12V4H17V2H7V4H8V12L6,14V16H11.2V22H12.8V16H18V14L16,12Z" /></svg>
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M16,12V4H17V2H7V4H8V12L6,14V16H11.2V22H12.8V16H18V14L16,12Z" />
+                        </svg>
                         <span>SABİTLENMİŞ MESAJ</span>
                     </div>
                     <div class="inline-content">
@@ -89,39 +117,48 @@ function renderPinnedMessage(msg) {
         const oldMsg = container.querySelector('.pinned-message');
         if (oldMsg) {
             oldMsg.classList.add('fade-out');
-            setTimeout(() => { container.innerHTML = html; }, 400);
+            setTimeout(() => {
+                container.innerHTML = html;
+            }, 400);
         } else {
             container.innerHTML = html;
         }
     };
 
-    async function resolveExternalImage(url, msgId) {
+    async function fetchExternalImage(url, msgId, type) {
+        // Eğer bu mesajın resmi zaten çözüldüyse hafızadan getir
         if (resolvedImages[msgId]) {
             render(resolvedImages[msgId]);
             return;
         }
 
         try {
-            const resolveUrl = `${BASE_PATH}/api/resolve-image?url=${encodeURIComponent(url)}`;
-            const res = await fetch(resolveUrl);
+            // Resolve image API kullan
+            const edgeUrl = `${API_RESOLVE}?url=${encodeURIComponent(url)}`;
+            const res = await fetch(edgeUrl);
             const data = await res.json();
 
             if (data.success && data.directUrl) {
+                console.log(`✅ ${type} - Edge Function'dan URL:`, data.directUrl);
                 resolvedImages[msgId] = data.directUrl;
                 render(data.directUrl);
             } else {
+                console.log(`❌ ${type} - URL çözülemedi:`, data.error || 'Unknown error');
                 render(null);
             }
         } catch (e) {
+            console.error("Scraping error:", e);
             render(null);
         }
     }
 
+    // IMAGE DETECTION LOGIC
     const imgRegex = /(https?:\/\/[^\s]+?\.(?:jpg|jpeg|png|gif|webp))/i;
-    const hizliResimRegex = /https?:\/\/hizliresim\.com\/[a-zA-Z0-9]+/i;
+    const hizliResimRegex = /https?:\/\/hizliresim\.com\/([a-zA-Z0-9]+)/i;
     const giphyRegex = /https?:\/\/giphy\.com\/gifs\/(?:.*-)?([a-zA-Z0-9]+)/i;
-    const prntScRegex = /https?:\/\/prnt\.sc\/[a-zA-Z0-9_-]+/i;
+    const prntScRegex = /https?:\/\/prnt\.sc\/([a-zA-Z0-9_-]+)/i;
 
+    let imageUrl = null;
     const imgMatch = content.match(imgRegex);
     const hizliMatch = content.match(hizliResimRegex);
     const giphyMatch = content.match(giphyRegex);
@@ -129,18 +166,18 @@ function renderPinnedMessage(msg) {
 
     if (hizliMatch) {
         content = content.replace(hizliMatch[0], '').trim();
-        resolveExternalImage(hizliMatch[0], msg.id);
+        fetchExternalImage(hizliMatch[0], msg.id, 'hizli');
     } else if (giphyMatch) {
-        let giphyId = giphyMatch[1];
-        let directUrl = `https://media.giphy.com/media/${giphyId}/giphy.gif`;
+        imageUrl = `https://media.giphy.com/media/${giphyMatch[1]}/giphy.gif`;
         content = content.replace(giphyMatch[0], '').trim();
-        render(directUrl);
+        render(imageUrl);
     } else if (prntMatch) {
         content = content.replace(prntMatch[0], '').trim();
-        resolveExternalImage(prntMatch[0], msg.id);
+        fetchExternalImage(prntMatch[0], msg.id, 'prnt');
     } else if (imgMatch) {
+        imageUrl = imgMatch[0];
         content = content.replace(imgMatch[0], '').trim();
-        render(imgMatch[0]);
+        render(imageUrl);
     } else {
         render(null);
     }
@@ -152,12 +189,16 @@ function hideWidget() {
         oldMsg.classList.add('fade-out');
         setTimeout(() => {
             container.innerHTML = '';
-            lastMessageId = null;
-            resolvedImages = {};
         }, 400);
+    } else {
+        // Eski mesaj yoksa hemen temizle
+        container.innerHTML = '';
     }
+    lastMessageId = null;
+    resolvedImages = {}; // Mesaj silindiğinde hafızayı temizle
 }
 
 fetchPinnedMessage();
 setInterval(fetchPinnedMessage, REFRESH_INTERVAL);
-console.log("⏱️ Rafraîchissement toutes les 15 secondes...");
+
+console.log("⏱️ Rafraîchissement toutes les 5 secondes...");
