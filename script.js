@@ -52,7 +52,7 @@ async function fetchPinnedMessage() {
 }
 
 function renderPinnedMessage(msg) {
-    const username = msg.sender?.username || 'Anonim';
+    const username = msg.sender?.username;
     let content = msg.content || '';
     const userColor = msg.sender?.identity?.color || '#53fc18';
     const isBroadcaster = msg.sender?.identity?.badges?.some(b => b.type === 'broadcaster');
