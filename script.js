@@ -2,7 +2,7 @@
 const CHANNEL_ID = '972395'; // Sayısal ID daha stabildir // kaanflix : 7522082 // parisdekibebeg : 972395
 
 // Hugging Face linkini buraya yapıştır (Sonunda / olmasın)
-const HF_BACKEND_URL = 'https://sketur60-kaanpin.hf.space'; 
+const HF_BACKEND_URL = 'https://kullaniciadi-spacename.hf.space'; 
 
 const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 const API_BASE = isLocal ? window.location.origin : HF_BACKEND_URL;

@@ -8,6 +8,10 @@
     {
       "source": "/api/resolve-image",
       "destination": "/api/resolve-image.js"
+    },
+    {
+      "source": "/static/(.*)",
+      "destination": "/$1"
     }
   ],
   "headers": [
