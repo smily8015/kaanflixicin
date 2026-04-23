@@ -9,5 +9,6 @@
       "source": "/api/resolve-image",
       "destination": "/api/resolve-image.js"
     }
-  ]
+  ],
+  "cleanUrls": true
 }

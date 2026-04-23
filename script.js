@@ -4,7 +4,7 @@ const REFRESH_INTERVAL = 15000;
 
 // Dinamik base URL - Vercel'de relative path kullanır
 const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-const BASE_PATH = isLocal ? `http://localhost:7860` : ''; // Python portun 7860 ise
+const BASE_PATH = isLocal ? `http://localhost:3000` : ''; 
 const API_BASE = `${BASE_PATH}/api/pinned/${CHANNEL_ID}`;
 
 const container = document.getElementById('widget-container');
