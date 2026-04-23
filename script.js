@@ -1,5 +1,5 @@
 // CONFIGURATION
-const CHANNEL_ID = '972395'; // Sayısal ID daha stabildir // kaanflix : 7522082 // parisdekibebeg : 972395
+const CHANNEL_ID = '7522082'; // Sayısal ID daha stabildir // kaanflix : 7522082 // parisdekibebeg : 972395
 
 // Hugging Face linkini buraya yapıştır (Sonunda / olmasın)
 const HF_BACKEND_URL = 'https://sketur60-kaanpin.hf.space'; 
