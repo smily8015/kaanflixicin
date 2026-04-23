@@ -10,6 +10,8 @@ const API_BASE = `${BASE_PATH}/api/pinned/${CHANNEL_ID}`;
 const container = document.getElementById('widget-container');
 let lastMessageId = null;
 let resolvedImages = {};
+let hideAttempts = 0; 
+const MAX_HIDE_ATTEMPTS = 3; 
 
 console.log(`🚀 Widget Başlatıldı. Kanal ID: ${CHANNEL_ID}`);
 
@@ -20,8 +22,18 @@ async function fetchPinnedMessage() {
 
         const data = await response.json();
         
-        // Eğer mesaj gelirse işle, gelmezse (null ise) hiçbir şey yapma (eski mesaj kalsın)
+        // Eğer başarılı bir sorgu geldiyse ve içinde mesaj yoksa sayaç başlat
+        if (data.success === true && !data.pinned_message) {
+            hideAttempts++;
+            if (hideAttempts >= MAX_HIDE_ATTEMPTS && lastMessageId !== null) {
+                hideWidget();
+            }
+            return;
+        }
+
+        // Eğer mesaj gelirse işle
         if (data.success === true && data.pinned_message) {
+            hideAttempts = 0; // Sayaç sıfırla
             const pinnedMsg = data.pinned_message;
 
             if (pinnedMsg.id === lastMessageId) {
