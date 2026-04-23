@@ -1,14 +1,12 @@
 {
-  "version": 2,
   "rewrites": [
     {
-      "source": "/api/pinned/(.*)",
-      "destination": "/api/index.js"
+      "source": "/api/pinned/:id",
+      "destination": "/api/pinned"
     },
     {
       "source": "/api/resolve-image",
-      "destination": "/api/resolve-image.js"
+      "destination": "/api/resolve-image"
     }
-  ],
-  "cleanUrls": true
+  ]
 }
